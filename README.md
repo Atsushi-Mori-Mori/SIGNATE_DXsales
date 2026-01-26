@@ -54,6 +54,7 @@ Public と Private の差が小さく、
 そこで単純な平均補完ではなく、
 回帰モデルによる相互補完を採用しました。<br>
 
+```
 # 営業利益 = a × 経常利益 + b
 train_df = train[train["OpProfit"].notna() & train["OrdProfit"].notna()]
 lr = LinearRegression()
@@ -61,6 +62,7 @@ lr.fit(train_df[["OrdProfit"]], train_df["OpProfit"])
 
 mask = train["OpProfit"].isna()
 train.loc[mask, "OpProfit"] = lr.predict(train.loc[mask, ["OrdProfit"]])
+```
 
 👉 財務的な整合性を保った補完ができるのが利点です。<br>
 
@@ -72,12 +74,14 @@ train.loc[mask, "OpProfit"] = lr.predict(train.loc[mask, ["OrdProfit"]])
 ・自己資本比率<br>
 ・売上 / 従業員数<br>
 
+```
 def safe_div(a, b):
     return np.divide(a, b, out=np.zeros_like(a), where=b!=0)
 
 df["OpMarg"] = safe_div(df["OpProfit"], df["Sales"])
 df["ROA"]    = safe_div(df["NetInc"], df["TotAsset"])
 df["ROE"]    = safe_div(df["NetInc"], df["Equity"])
+```
 
 👉「規模の違う会社を横並びで比較できる」という点で、DX投資判断と相性が良いと考えました。<br>
 
@@ -91,6 +95,7 @@ df["ROE"]    = safe_div(df["NetInc"], df["Equity"])
 ・正規化<br>
 を組み合わせました。<br>
 
+```
 tfidf = TfidfVectorizer(
     analyzer="char",
     ngram_range=(2,5),
@@ -101,6 +106,7 @@ svd = TruncatedSVD(n_components=32)
 pipe = make_pipeline(tfidf, svd, Normalizer())
 
 X_text = pipe.fit_transform(train["Summary"].fillna(""))
+```
 
 👉「DX」「デジタル」「改革」などの言葉の温度感をモデルに渡せるのが強みです。<br>
 
@@ -114,6 +120,7 @@ X_text = pipe.fit_transform(train["Summary"].fillna(""))
 ・RandomForest<br>
 ・SVM（RBF）<br>
 
+```
 oof_meta = np.zeros((X.shape[0], 5))
 
 for fold, (tr, va) in enumerate(skf.split(X, y)):
@@ -126,15 +133,18 @@ Logistic Regression（正則化あり）<br>
 
 meta = LogisticRegression(C=0.5, max_iter=1000)
 meta.fit(oof_meta, y)
+```
 
 👉ツリー系・距離系・線形系を混ぜることでPrivateスコアの安定性が向上しました。<br>
 
 ### 3.6 閾値最適化（F1最大化）
 提出前に PRカーブからF1が最大となる閾値を探索します。<br>
 
+```
 precision, recall, thresholds = precision_recall_curve(y, proba)
 f1 = 2 * precision * recall / (precision + recall)
 best_thr = thresholds[np.argmax(f1)]
+```
 
 👉「0.5固定」はF1ではほぼ最適にならない、というのが実感です。<br>
 
